@@ -1,8 +1,5 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.16)
 project(serial)
-
-# Find catkin
-find_package(catkin REQUIRED)
 
 if(APPLE)
     find_library(IOKIT_LIBRARY IOKit)
@@ -10,72 +7,56 @@ if(APPLE)
 endif()
 
 if(UNIX AND NOT APPLE)
-    # If Linux, add rt and pthread
-    set(rt_LIBRARIES rt)
-    set(pthread_LIBRARIES pthread)
-    catkin_package(
-        LIBRARIES ${PROJECT_NAME}
-        INCLUDE_DIRS include
-        DEPENDS rt pthread
-    )
-else()
-    # Otherwise normal call
-    catkin_package(
-        LIBRARIES ${PROJECT_NAME}
-        INCLUDE_DIRS include
-    )
+    find_package(Threads)  
 endif()
 
 ## Sources
 set(serial_SRCS
-    src/serial.cc
-    include/serial/serial.h
-    include/serial/v8stdint.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/serial.cc
 )
 if(APPLE)
     # If OSX
-    list(APPEND serial_SRCS src/impl/unix.cc)
-    list(APPEND serial_SRCS src/impl/list_ports/list_ports_osx.cc)
+    list(APPEND serial_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/unix.cc)
+    list(APPEND serial_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/list_ports/list_ports_osx.cc)
 elseif(UNIX)
     # If unix
-    list(APPEND serial_SRCS src/impl/unix.cc)
-    list(APPEND serial_SRCS src/impl/list_ports/list_ports_linux.cc)
+    list(APPEND serial_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/unix.cc)
+    list(APPEND serial_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/list_ports/list_ports_linux.cc)
 else()
     # If windows
-    list(APPEND serial_SRCS src/impl/win.cc)
-    list(APPEND serial_SRCS src/impl/list_ports/list_ports_win.cc)
+    list(APPEND serial_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/win.cc)
+    list(APPEND serial_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/list_ports/list_ports_win.cc)
 endif()
 
 ## Add serial library
 add_library(${PROJECT_NAME} ${serial_SRCS})
 if(APPLE)
-    target_link_libraries(${PROJECT_NAME} ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
 elseif(UNIX)
-    target_link_libraries(${PROJECT_NAME} rt pthread)
+    target_link_libraries(${PROJECT_NAME} INTERFACE Threads::Threads)
 else()
-    target_link_libraries(${PROJECT_NAME} setupapi)
+    target_link_libraries(${PROJECT_NAME} PUBLIC setupapi)
 endif()
 
 ## Uncomment for example
-add_executable(serial_example examples/serial_example.cc)
-add_dependencies(serial_example ${PROJECT_NAME})
-target_link_libraries(serial_example ${PROJECT_NAME})
+add_executable(serial_example ${CMAKE_CURRENT_SOURCE_DIR}/examples/serial_example.cc)
+target_link_libraries(serial_example PRIVATE ${PROJECT_NAME})
 
 ## Include headers
-include_directories(include)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 ## Install executable
-install(TARGETS ${PROJECT_NAME}
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-)
+#install(TARGETS ${PROJECT_NAME}
+#    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#    RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+#)
 
 ## Install headers
-install(FILES include/serial/serial.h include/serial/v8stdint.h
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+#install(FILES include/serial/serial.h include/serial/v8stdint.h
+#  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
 
 ## Tests
-if(CATKIN_ENABLE_TESTING)
+if(ENABLE_TESTING)
     add_subdirectory(tests)
 endif()
